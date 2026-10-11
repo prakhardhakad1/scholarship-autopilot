@@ -26,9 +26,9 @@ Scholarships: ${JSON.stringify(slim)}.
 Eligibility rules: the student's grade must be in the scholarship's grades; GPA must meet minGpa when set;
 their field must fit (Any = all fields); and the scholarship's country must equal the student's country
 OR the scholarship must be marked intl (open internationally).
-Return ONLY valid JSON — an array of objects for scholarships the student is ELIGIBLE for, each shaped:
-{"id":"<scholarship id>","why":"<one sentence on why they match>","essay":"<3-4 sentence tailored essay draft opening>"}.
-No markdown, no explanation, just the JSON array.`;
+Return ONLY valid JSON shaped like this — no markdown, no explanation:
+{"matches":[{"id":"<scholarship id>","why":"<one sentence on why they match>","essay":"<3-4 sentence tailored essay draft opening>"}],
+ "analysis":"<3-4 sentences: the student's strengths, gaps, and one actionable tip>"}`;
 
   try {
     const r = await fetch(
@@ -43,8 +43,10 @@ No markdown, no explanation, just the JSON array.`;
     if (!r.ok) throw new Error("Gemini HTTP " + r.status);
     const data = await r.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    const arr = JSON.parse(text.slice(text.indexOf("["), text.lastIndexOf("]") + 1));
-    return res.status(200).json(arr);
+    const obj = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
+    const arr = Array.isArray(obj) ? obj : (obj.matches || []);
+    if (!Array.isArray(arr)) throw new Error("bad AI response");
+    return res.status(200).json(Array.isArray(obj) ? { matches: arr, analysis: null } : obj);
   } catch (e) {
     return res.status(502).json({ error: "AI request failed" });
   }
