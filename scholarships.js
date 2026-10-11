@@ -100,7 +100,7 @@ const SCHOLARSHIPS_DATA = [
     minGpa: null, fields: ["STEM"],
     officialLink: "https://inspireawards-dst.gov.in",
     note: "DST Govt of India; school nomination required (5 ideas/school, max 2 from classes 11-12 science).",
-    country: "USA",
+    country: "India",
   },
   {
     id: "vfw-voice-of-democracy", name: "VFW Voice of Democracy",
