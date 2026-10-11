@@ -122,5 +122,77 @@ const SCHOLARSHIPS_DATA = [
     minGpa: 3.75, fields: ["Any"],
     officialLink: "https://carsonscholars.org/for-students/",
     note: "Grades 4-11; SCHOOL NOMINATION required; 3.75 GPA + community service; U.S. schools only."
+  },
+  {
+    id: "arkwright-engineering", name: "Arkwright Engineering Scholarships",
+    award: "£250/year for both years", deadline: "2025-12-11", grades: [10, 11, 12],
+    minGpa: null, fields: ["STEM"],
+    officialLink: "https://www.smallpeicetrust.org.uk/arkwright-engineering-scholarships/",
+    note: "UK flagship engineering scholarship for ages 16-18; grant + industry mentor + STEM events.",
+    country: "UK"
+  },
+  {
+    id: "schulich-leader", name: "Schulich Leader Scholarships",
+    award: "$120,000 (Engineering) / $100,000 (Science)", deadline: "2027-01-27", grades: [12],
+    minGpa: null, fields: ["STEM"],
+    officialLink: "https://you.ubc.ca/financial-planning/scholarships-awards-canadian-students/schulich-leader/",
+    note: "Canada's largest STEM undergrad scholarship; school nomination required.",
+    country: "Canada"
+  },
+  {
+    id: "td-indigenous-peoples", name: "TD Scholarship for Indigenous Peoples",
+    award: "Up to $60,000", deadline: "2026-10-31", grades: [12],
+    minGpa: null, fields: ["Any"],
+    officialLink: "https://www.newswire.ca/news-releases/td-scholarship-for-indigenous-peoples-call-for-2027-applications-820767618.html",
+    note: "For First Nations, Metis and Inuit students entering post-secondary; 25 awards yearly.",
+    country: "Canada"
+  },
+  {
+    id: "swinburne-vc-excellence", name: "Swinburne Vice-Chancellor's Excellence Scholarship",
+    award: "A$5,000/year", deadline: "2026-12-31", grades: [12],
+    minGpa: null, fields: ["Any"],
+    officialLink: "https://www.swinburne.edu.au/courses/scholarships/vice-chancellor-s-excellence-scholarship/",
+    note: "Automatic for Year 12 school leavers with ATAR 95+ entering Swinburne; Australian citizens/PR only.",
+    country: "Australia"
+  },
+  {
+    id: "nmms", name: "National Means-cum-Merit Scholarship Scheme (NMMSS)",
+    award: "Rs.12,000/year", deadline: "2026-10-31", grades: [9, 10, 11, 12],
+    minGpa: null, fields: ["Any"],
+    officialLink: "https://scholarships.gov.in",
+    note: "Central govt merit-cum-means scheme for Class 9 entrants in govt/aided schools; 1 lakh fresh awards yearly.",
+    country: "India"
+  },
+  {
+    id: "mext-undergraduate", name: "Japanese Government (MEXT) Undergraduate Scholarship",
+    award: "Full tuition + monthly stipend + airfare", deadline: "2026-06-05", grades: [12],
+    minGpa: null, fields: ["Any"],
+    officialLink: "https://www.pk.emb-japan.go.jp/itpr_en/MEXT_Undergrad_Scholarship.html",
+    note: "Japan's fully funded government scholarship for undergrad study.",
+    country: "Japan"
+  },
+  {
+    id: "tata-capital-pankh", name: "Tata Capital Pankh Scholarship Program 2026-27",
+    award: "Up to Rs.15,000 (Classes 11-12)", deadline: "2026-10-26", grades: [11, 12],
+    minGpa: null, fields: ["Any"],
+    officialLink: "https://www.buddy4study.com/article/the-tata-capital-pankh-scholarship",
+    note: "Tata Capital CSR merit-cum-means aid; 60%+ marks, family income <= Rs.4 lakh.",
+    country: "India"
+  },
+  {
+    id: "terry-fox-humanitarian", name: "Terry Fox Humanitarian Award",
+    award: "$28,000", deadline: "2026-12-01", grades: [12],
+    minGpa: null, fields: ["Any"],
+    officialLink: "https://terryfoxawards.ca/applicant-information/",
+    note: "For graduating secondary students with sustained voluntary humanitarian work; Canadian citizens/PR.",
+    country: "Canada"
+  },
+  {
+    id: "uoa-international-school-leaver", name: "University of Auckland International School Leaver Scholarship",
+    award: "NZ$20,000", deadline: "2026-10-23", grades: [12],
+    minGpa: null, fields: ["Any"],
+    officialLink: "http://international.auckland.ac.nz/study/scholarships",
+    note: "For international students completing NZ secondary school and entering first-year undergrad at Auckland.",
+    country: "New Zealand"
   }
 ];
