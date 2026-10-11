@@ -17,6 +17,12 @@ window.addEventListener("DOMContentLoaded", () => {
   const k = localStorage.getItem("sap_gemini_key");
   if (k) document.getElementById("apikey").value = k;
   document.getElementById("statN").textContent = DATA.length;
+  // On a deployed site the key lives server-side (/api/match) — hide the key field.
+  // It stays visible only for local file:// runs.
+  if (location.protocol.indexOf("http") === 0) {
+    const a = document.getElementById("aiSettings");
+    if (a) a.style.display = "none";
+  }
   refreshProfileSel();
 });
 
@@ -34,6 +40,7 @@ function readProfile() {
   return {
     name: document.getElementById("name").value.trim(),
     grade: parseInt(document.getElementById("grade").value, 10),
+    country: document.getElementById("country").value,
     gpa: parseFloat(document.getElementById("gpa").value) || 0,
     field: document.getElementById("field").value.trim() || "Any",
     achievement: document.getElementById("achievement").value.trim()
@@ -45,11 +52,28 @@ function stage(text) {
 }
 
 function whyLine(profile, s) {
-  const bits = [`Grade ${profile.grade} ✓`];
+  const bits = [`Grade ${profile.grade} ✓`, `${countryName(profile.country)} ✓`];
   if (s.minGpa != null) bits.push(`GPA ${profile.gpa} ≥ ${s.minGpa} ✓`);
   if (s.fields.includes("Any")) bits.push(`open to all fields ✓`);
   else bits.push(`interest in ${profile.field} matches ${s.fields.join(" / ")} ✓`);
+  if (s.intl) bits.push(`open internationally ✓`);
   return bits.join(", ") + ".";
+}
+
+/* subject synonyms so "Engineering" matches STEM, "Painting" matches Arts, etc. */
+const FIELD_HINTS = {
+  STEM: ["science","technology","engineering","math","computer","physics","chemistry","biology","medicine","data","ai","robot","space"],
+  Arts: ["art","music","writing","design","literature","theatre","theater","film","dance","paint","poet","photo"]
+};
+function fieldOK(s, profile) {
+  if (s.fields.includes("Any")) return true;
+  const f = profile.field.toLowerCase();
+  return s.fields.some(sf =>
+    f.includes(sf.toLowerCase()) || (FIELD_HINTS[sf] || []).some(h => f.includes(h)));
+}
+function countryName(code) {
+  return { USA: "USA", UK: "UK", Canada: "Canada", Australia: "Australia",
+    India: "India", Japan: "Japan", "New Zealand": "New Zealand" }[code] || code;
 }
 
 /* ---------- local fallback: transparent rule-based matching ---------- */
@@ -58,8 +82,8 @@ function localMatch(profile) {
     .filter(s =>
       s.grades.includes(profile.grade) &&
       (s.minGpa == null || profile.gpa >= s.minGpa) &&
-      (s.fields.includes("Any") ||
-       s.fields.some(f => profile.field.toLowerCase().includes(f.toLowerCase()))))
+      fieldOK(s, profile) &&
+      (s.country === profile.country || s.intl))
     .map(s => ({ ...s, why: whyLine(profile, s), essay: localEssay(profile, s), live: false }));
 }
 function localEssay(profile, s) {
@@ -74,10 +98,13 @@ function localEssay(profile, s) {
 /* ---------- live AI matching via Gemini (structured JSON output) ---------- */
 async function geminiMatch(profile, key) {
   const slim = DATA.map(s => ({ id: s.id, name: s.name, grades: s.grades, minGpa: s.minGpa,
-    fields: s.fields, award: s.award, deadline: s.deadline, country: s.country || null }));
+    fields: s.fields, award: s.award, deadline: s.deadline, country: s.country || null, intl: !!s.intl }));
   const prompt =
 `You are a scholarship matching assistant. Student profile: ${JSON.stringify(profile)}.
 Scholarships: ${JSON.stringify(slim)}.
+Eligibility rules: the student's grade must be in the scholarship's grades; GPA must meet minGpa when set;
+their field must fit (Any = all fields); and the scholarship's country must equal the student's country
+OR the scholarship must be marked intl (open internationally).
 Return ONLY valid JSON — an array of objects for scholarships the student is ELIGIBLE for, each shaped:
 {"id":"<scholarship id>","why":"<one sentence on why they match>","essay":"<3-4 sentence tailored essay draft opening>"}.
 No markdown, no explanation, just the JSON array.`;
@@ -98,7 +125,7 @@ No markdown, no explanation, just the JSON array.`;
 /* ---------- server-side AI (Vercel /api/match — key never leaves the server) ---------- */
 async function serverMatch(profile) {
   const slim = DATA.map(s => ({ id: s.id, name: s.name, grades: s.grades, minGpa: s.minGpa,
-    fields: s.fields, award: s.award, deadline: s.deadline, country: s.country || null }));
+    fields: s.fields, award: s.award, deadline: s.deadline, country: s.country || null, intl: !!s.intl }));
   const res = await fetch("/api/match", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -168,7 +195,12 @@ function render(profile, matches, live) {
   badge.innerHTML = live
     ? `<span class="badge live">LIVE AI</span>`
     : `<span class="badge local">LOCAL MODE · ADD KEY FOR LIVE AI</span>`;
-  box.innerHTML = visible.map((s, i) => {
+  window._matches = visible; // checklist automation buttons index into this
+  const gpaWarn = profile.gpa < 2.0
+    ? `<div class="warn">⚠️ <b>Heads up:</b> with a GPA under 2.0, most merit scholarships are extremely competitive. ` +
+      `The matches below have <b>no published GPA cutoff</b> — treat them as long shots and confirm directly on the official page.</div>`
+    : "";
+  box.innerHTML = gpaWarn + visible.map((s, i) => {
     const st = deadlineStatus(s.deadline);
     const cur = t[s.id];
     return `
@@ -186,9 +218,11 @@ function render(profile, matches, live) {
         ${["want", "applied", "won"].map(k =>
           `<button class="tbtn ${cur === k ? "active-" + k : ""}" onclick="setTrack('${s.id}','${k}')">${TRACK_LABELS[k]}</button>`).join("")}
       </div>
-      <div class="checks"><b class="head">CHECKLIST</b>
-        ${["Confirm eligibility", "Finalize essay", "Recommendation letter", `Submit before ${s.deadline}`]
-          .map(c => `<label class="check"><input type="checkbox" onchange="this.parentElement.classList.toggle('done', this.checked)"><span>${escapeHtml(c)}</span></label>`).join("")}
+      <div class="checks"><b class="head">CHECKLIST <span class="autotag">AUTOPILOT-ASSISTED</span></b>
+        <label class="check done"><input type="checkbox" checked disabled><span>Confirm eligibility <em class="auto">AUTO ✓ verified</em></span></label>
+        <label class="check"><input type="checkbox" id="ck-essay-${i}" onchange="this.parentElement.classList.toggle('done', this.checked)"><span>Finalize essay</span> <button type="button" class="mini" onclick="copyEssay(${i}, event)">Copy draft</button></label>
+        <label class="check"><input type="checkbox" onchange="this.parentElement.classList.toggle('done', this.checked)"><span>Recommendation letter</span></label>
+        <label class="check"><input type="checkbox" id="ck-cal-${i}" onchange="this.parentElement.classList.toggle('done', this.checked)"><span>Submit before ${escapeHtml(s.deadline)}</span> <button type="button" class="mini" onclick="addCal(${i}, event)">Add to calendar</button></label>
       </div>
       ${s.note ? `<p class="note">${escapeHtml(s.note)}</p>` : ""}
     </article>`; }).join("");
@@ -208,6 +242,24 @@ function deadlineStatus(iso) {
   if (days <= 45) return { label: `🟡 ${days}d left`, cls: "soon" };
   return { label: `🟢 ${days}d left`, cls: "open" };
 }
+
+/* checklist automation: copy draft / add-to-calendar check their boxes */
+window.copyEssay = function(i, e) {
+  if (e) e.preventDefault();
+  const m = window._matches && window._matches[i];
+  if (!m) return;
+  if (navigator.clipboard) navigator.clipboard.writeText(m.essay || "").catch(() => {});
+  const box = document.getElementById("ck-essay-" + i);
+  if (box) { box.checked = true; box.closest("label").classList.add("done"); }
+};
+window.addCal = function(i, e) {
+  if (e) e.preventDefault();
+  const m = window._matches && window._matches[i];
+  if (!m) return;
+  downloadICS(m);
+  const box = document.getElementById("ck-cal-" + i);
+  if (box) { box.checked = true; box.closest("label").classList.add("done"); }
+};
 
 /* ---------- application tracker (localStorage) ---------- */
 let trackFilter = "all";
@@ -234,24 +286,34 @@ function setFilter(k) { trackFilter = k; render(LAST.profile, LAST.matches, LAST
 
 /* ---------- deadline calendar export (.ics) ---------- */
 function icsEsc(t) { return String(t).replace(/\\/g, "\\\\").replace(/,/g, "\\,").replace(/;/g, "\\;"); }
-function exportICS() {
-  if (!LAST || !LAST.matches.length) return;
-  const open = LAST.matches.filter(s => deadlineStatus(s.deadline).cls !== "closed");
-  if (!open.length) { alert("No open deadlines to export."); return; }
+function buildICS(list) {
   const stamp = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
   let ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//ScholarshipAutopilot//EvoHacks2026//EN\r\n";
-  open.forEach(s => {
+  list.forEach(s => {
     ics += "BEGIN:VEVENT\r\nUID:" + s.id + "@scholarship-autopilot\r\nDTSTAMP:" + stamp +
       "\r\nDTSTART;VALUE=DATE:" + s.deadline.replace(/-/g, "") +
       "\r\nSUMMARY:" + icsEsc(`Scholarship deadline: ${s.name} (${s.award})`) +
       "\r\nDESCRIPTION:" + icsEsc("Official page: " + s.officialLink) + "\r\nEND:VEVENT\r\n";
   });
-  ics += "END:VCALENDAR";
+  return ics + "END:VCALENDAR";
+}
+function downloadICSFile(ics, filename) {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
-  a.download = "scholarship-deadlines.ics";
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+/* single-scholarship .ics (used by the checklist "Add to calendar" button) */
+function downloadICS(s) {
+  if (deadlineStatus(s.deadline).cls === "closed") { alert("This deadline has passed."); return; }
+  downloadICSFile(buildICS([s]), `deadline-${s.id}.ics`);
+}
+function exportICS() {
+  if (!LAST || !LAST.matches.length) return;
+  const open = LAST.matches.filter(s => deadlineStatus(s.deadline).cls !== "closed");
+  if (!open.length) { alert("No open deadlines to export."); return; }
+  downloadICSFile(buildICS(open), "scholarship-deadlines.ics");
 }
 
 /* ---------- saved profiles (localStorage) ---------- */
@@ -272,6 +334,7 @@ function loadProfile(name) {
   const p = getProfiles()[name]; if (!p) return;
   document.getElementById("name").value = p.name || "";
   document.getElementById("grade").value = p.grade;
+  if (p.country) document.getElementById("country").value = p.country;
   document.getElementById("gpa").value = p.gpa;
   document.getElementById("field").value = p.field === "Any" ? "" : p.field;
   document.getElementById("achievement").value = p.achievement || "";
@@ -289,7 +352,7 @@ function exportPack() {
   const { profile, matches, live } = LAST;
   const displayName = profile.name || "Student";
   let md = `# Scholarship Application Pack — ${displayName}\n\n`;
-  md += `Profile: grade ${profile.grade}, GPA ${profile.gpa}, interest: ${profile.field}\n`;
+  md += `Profile: grade ${profile.grade}, ${countryName(profile.country)}, GPA ${profile.gpa}, interest: ${profile.field}\n`;
   md += `Generated: ${new Date().toISOString()} (${live ? "live Gemini AI" : "local matching"})\n\n`;
   matches.forEach((s, i) => {
     md += `## ${i + 1}. ${s.name}\nAward: ${s.award} · Deadline: ${s.deadline}\nOfficial: ${s.officialLink}\n\n`;
