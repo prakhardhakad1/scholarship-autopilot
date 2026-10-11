@@ -23,7 +23,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const a = document.getElementById("aiSettings");
     if (a) a.style.display = "none";
   }
-  updateGradeOptions();
+  updateCountrySystem();
   refreshProfileSel();
 });
 
@@ -38,14 +38,27 @@ function getKey() {
       || (localStorage.getItem("sap_gemini_key") || "").trim();
 }
 function readProfile() {
+  const sys = countrySys();
+  const raw = parseFloat(document.getElementById("gpa").value) || 0;
+  const gpa = Math.round(sys.toGPA(raw) * 100) / 100;
   return {
     name: document.getElementById("name").value.trim(),
     grade: parseInt(document.getElementById("grade").value, 10),
     country: document.getElementById("country").value,
-    gpa: parseFloat(document.getElementById("gpa").value) || 0,
+    gpa: gpa,                       // internal 0-4 scale (verified cutoffs use this)
+    scoreRaw: raw,                  // what the student actually typed
+    scoreIsPct: sys.pct,            // true → show % in UI, false → show GPA
     field: document.getElementById("field").value.trim() || "Any",
     achievement: document.getElementById("achievement").value.trim()
   };
+}
+/* human-readable score for UI: "85%" or "3.6" */
+function scoreText(p) { return p.scoreIsPct ? `${p.scoreRaw}%` : `${p.gpa}`; }
+/* human-readable grade for UI: "Class 12", "Year 13", ... */
+function gradeLabelFor(p) {
+  const sys = COUNTRY_SYSTEMS[p.country] || COUNTRY_SYSTEMS.USA;
+  const opt = sys.grades.find(([v]) => v === p.grade);
+  return opt ? opt[1] : `Grade ${p.grade}`;
 }
 function setStatus(html) { document.getElementById("status").innerHTML = html || ""; }
 function stage(text) {
@@ -54,7 +67,12 @@ function stage(text) {
 
 function whyLine(profile, s) {
   const bits = [`Grade ${profile.grade} ✓`, `${countryName(profile.country)} ✓`];
-  if (s.minGpa != null) bits.push(`GPA ${profile.gpa} ≥ ${s.minGpa} ✓`);
+  if (s.minGpa != null) {
+    const have = profile.scoreIsPct
+      ? `${profile.scoreRaw}% (≈${profile.gpa.toFixed(1)} GPA)`
+      : `GPA ${profile.gpa}`;
+    bits.push(`${have} ≥ ${s.minGpa} cutoff ✓`);
+  }
   if (s.fields.includes("Any")) bits.push(`open to all fields ✓`);
   else bits.push(`interest in ${profile.field} matches ${s.fields.join(" / ")} ✓`);
   if (s.intl) bits.push(`open internationally ✓`);
@@ -77,24 +95,41 @@ function countryName(code) {
     India: "India", Japan: "Japan", "New Zealand": "New Zealand" }[code] || code;
 }
 
-/* grade naming per country: [internal grade value, label shown] */
-const GRADE_SYSTEMS = {
-  USA:    { label: "Grade", opts: [[9, "Grade 9"], [10, "Grade 10"], [11, "Grade 11"], [12, "Grade 12"]] },
-  Canada: { label: "Grade", opts: [[9, "Grade 9"], [10, "Grade 10"], [11, "Grade 11"], [12, "Grade 12"]] },
-  UK:     { label: "Year",  opts: [[9, "Year 10"], [10, "Year 11"], [11, "Year 12"], [12, "Year 13"]] },
-  Australia: { label: "Year", opts: [[9, "Year 9"], [10, "Year 10"], [11, "Year 11"], [12, "Year 12"]] },
-  India:  { label: "Class", opts: [[9, "Class 9"], [10, "Class 10"], [11, "Class 11"], [12, "Class 12"]] },
-  Japan:  { label: "High school year", opts: [[10, "1st Year"], [11, "2nd Year"], [12, "3rd Year"]] },
-  "New Zealand": { label: "Year", opts: [[9, "Year 10"], [10, "Year 11"], [11, "Year 12"], [12, "Year 13"]] }
+/* per-country systems: grade naming + academic score (GPA vs percentage).
+ * Internal matching stays on the 0-4 GPA scale (that's what verified cutoffs use);
+ * percentage scores convert transparently via toGPA. */
+const PCT_TO_GPA = v => Math.min(4, Math.max(0, (v - 50) / 12.5)); // 100%→4.0, 87.5%→3.0, 75%→2.0
+const GPA_TO_PCT = g => Math.round((g * 12.5 + 50) * 10) / 10;
+const COUNTRY_SYSTEMS = {
+  USA:    { gradeLabel: "Grade", grades: [[9, "Grade 9"], [10, "Grade 10"], [11, "Grade 11"], [12, "Grade 12"]],
+            scoreLabel: "GPA (0–4)", scoreMax: 4, scoreStep: 0.1, scoreDef: 3.6, pct: false, toGPA: v => v },
+  Canada: { gradeLabel: "Grade", grades: [[9, "Grade 9"], [10, "Grade 10"], [11, "Grade 11"], [12, "Grade 12"]],
+            scoreLabel: "GPA (0–4)", scoreMax: 4, scoreStep: 0.1, scoreDef: 3.6, pct: false, toGPA: v => v },
+  UK:     { gradeLabel: "Year",  grades: [[9, "Year 10"], [10, "Year 11"], [11, "Year 12"], [12, "Year 13"]],
+            scoreLabel: "Average % (0–100)", scoreMax: 100, scoreStep: 1, scoreDef: 75, pct: true, toGPA: PCT_TO_GPA },
+  Australia: { gradeLabel: "Year", grades: [[9, "Year 9"], [10, "Year 10"], [11, "Year 11"], [12, "Year 12"]],
+            scoreLabel: "Average % (0–100)", scoreMax: 100, scoreStep: 1, scoreDef: 75, pct: true, toGPA: PCT_TO_GPA },
+  India:  { gradeLabel: "Class", grades: [[9, "Class 9"], [10, "Class 10"], [11, "Class 11"], [12, "Class 12"]],
+            scoreLabel: "Percentage (0–100)", scoreMax: 100, scoreStep: 0.5, scoreDef: 85, pct: true, toGPA: PCT_TO_GPA },
+  Japan:  { gradeLabel: "High school year", grades: [[10, "1st Year"], [11, "2nd Year"], [12, "3rd Year"]],
+            scoreLabel: "Average % (0–100)", scoreMax: 100, scoreStep: 1, scoreDef: 75, pct: true, toGPA: PCT_TO_GPA },
+  "New Zealand": { gradeLabel: "Year", grades: [[9, "Year 10"], [10, "Year 11"], [11, "Year 12"], [12, "Year 13"]],
+            scoreLabel: "Average % (0–100)", scoreMax: 100, scoreStep: 1, scoreDef: 75, pct: true, toGPA: PCT_TO_GPA }
 };
-function updateGradeOptions() {
+function countrySys() {
   const c = document.getElementById("country").value;
-  const sys = GRADE_SYSTEMS[c] || GRADE_SYSTEMS.USA;
+  return COUNTRY_SYSTEMS[c] || COUNTRY_SYSTEMS.USA;
+}
+function updateCountrySystem() {
+  const sys = countrySys();
   const sel = document.getElementById("grade");
   const prev = parseInt(sel.value, 10);
-  document.getElementById("gradeLabel").textContent = sys.label;
-  sel.innerHTML = sys.opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
-  sel.value = sys.opts.some(([v]) => v === prev) ? prev : sys.opts[sys.opts.length - 1][0];
+  document.getElementById("gradeLabel").textContent = sys.gradeLabel;
+  sel.innerHTML = sys.grades.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+  sel.value = sys.grades.some(([v]) => v === prev) ? prev : sys.grades[sys.grades.length - 1][0];
+  document.getElementById("scoreLabel").textContent = sys.scoreLabel;
+  const inp = document.getElementById("gpa");
+  inp.max = sys.scoreMax; inp.step = sys.scoreStep; inp.value = sys.scoreDef;
 }
 
 /* ---------- local fallback: transparent rule-based matching ---------- */
@@ -130,9 +165,11 @@ function localAnalysis(profile, matches) {
   if (missed.length) {
     const need = Math.min(...missed.map(s => s.minGpa));
     const names = missed.slice(0, 3).map(s => s.name).join(", ");
-    out.push(`GPA ${profile.gpa} locks you out of ${missed.length}: ${names}${missed.length > 3 ? ", …" : ""}. Reaching ${need} would unlock them.`);
+    const haveTxt = scoreText(profile);
+    const needTxt = profile.scoreIsPct ? `${GPA_TO_PCT(need)}%` : `${need} GPA`;
+    out.push(`${haveTxt} locks you out of ${missed.length}: ${names}${missed.length > 3 ? ", …" : ""}. Reaching ${needTxt} would unlock them.`);
   } else if (profile.gpa >= 3.5) {
-    out.push(`GPA ${profile.gpa} clears every published cutoff in the dataset — merit scholarships are your strong lane.`);
+    out.push(`${scoreText(profile)} clears every published cutoff in the dataset — merit scholarships are your strong lane.`);
   }
   const intlN = matches.filter(s => s.intl).length;
   if (intlN) out.push(`${intlN} international program${intlN > 1 ? "s" : ""} open to you regardless of country.`);
@@ -394,9 +431,9 @@ function loadProfile(name) {
   const p = getProfiles()[name]; if (!p) return;
   document.getElementById("name").value = p.name || "";
   if (p.country) document.getElementById("country").value = p.country;
-  updateGradeOptions();
+  updateCountrySystem();
   document.getElementById("grade").value = p.grade;
-  document.getElementById("gpa").value = p.gpa;
+  document.getElementById("gpa").value = (p.scoreRaw != null ? p.scoreRaw : "");
   document.getElementById("field").value = p.field === "Any" ? "" : p.field;
   document.getElementById("achievement").value = p.achievement || "";
 }
@@ -413,7 +450,7 @@ function exportPack() {
   const { profile, matches, live } = LAST;
   const displayName = profile.name || "Student";
   let md = `# Scholarship Application Pack — ${displayName}\n\n`;
-  md += `Profile: grade ${profile.grade}, ${countryName(profile.country)}, GPA ${profile.gpa}, interest: ${profile.field}\n`;
+  md += `Profile: ${gradeLabelFor(profile)}, ${countryName(profile.country)}, score ${scoreText(profile)}, interest: ${profile.field}\n`;
   md += `Generated: ${new Date().toISOString()} (${live ? "live Gemini AI" : "local matching"})\n\n`;
   const aLines = (live && LAST.analysis) ? [LAST.analysis] : localAnalysis(profile, matches);
   md += `## Profile analysis\n${aLines.map(t => `- ${t}`).join("\n")}\n\n`;
