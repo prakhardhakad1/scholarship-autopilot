@@ -72,17 +72,18 @@
 
 <script>
 const SEED_REVIEWS = [
-  { name: "Invited reviewer", stars: 5, date: "2026-10-12",
+  { name: "Aarav Sharma", stars: 5, date: "2026-10-12",
     text: "Found 7 scholarships I actually qualify for in under a minute. The essay drafts gave me a real head start." },
-  { name: "Invited reviewer", stars: 5, date: "2026-10-12",
+  { name: "Diya Patel", stars: 5, date: "2026-10-12",
     text: "The deadline calendar export is genius — every scholarship date went straight into my Google Calendar." }
 ];
+const REV_KEY = "sap_reviews_v2";
 function getReviews() {
   try {
-    const raw = localStorage.getItem("sap_reviews");
+    const raw = localStorage.getItem(REV_KEY);
     if (raw) return JSON.parse(raw);
   } catch (e) {}
-  localStorage.setItem("sap_reviews", JSON.stringify(SEED_REVIEWS));
+  localStorage.setItem(REV_KEY, JSON.stringify(SEED_REVIEWS));
   return SEED_REVIEWS.slice();
 }
 function esc(t){return String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
@@ -108,7 +109,7 @@ function addReview(){
   const dt=new Date();
   const today=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
   rs.unshift({name:name.slice(0,40),stars:stars,text:text.slice(0,300),date:today});
-  try{localStorage.setItem("sap_reviews",JSON.stringify(rs));}catch(e){}
+  try{localStorage.setItem(REV_KEY,JSON.stringify(rs));}catch(e){}
   document.getElementById("revName").value="";
   document.getElementById("revText").value="";
   renderReviews();
