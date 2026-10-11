@@ -24,6 +24,11 @@ window.addEventListener("DOMContentLoaded", () => {
     if (a) a.style.display = "none";
   }
   updateCountrySystem();
+  ["name", "grade", "country"].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener("input", () => el.classList.remove("field-error"));
+    el.addEventListener("change", () => el.classList.remove("field-error"));
+  });
   refreshProfileSel();
 });
 
@@ -121,16 +126,36 @@ function countrySys() {
   return COUNTRY_SYSTEMS[c] || COUNTRY_SYSTEMS.USA;
 }
 function updateCountrySystem() {
-  const sys = countrySys();
+  const c = document.getElementById("country").value;
   const sel = document.getElementById("grade");
-  const prev = parseInt(sel.value, 10);
-  document.getElementById("gradeLabel").textContent = sys.gradeLabel;
-  sel.innerHTML = sys.grades.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
-  sel.value = sys.grades.some(([v]) => v === prev) ? prev : sys.grades[sys.grades.length - 1][0];
-  document.getElementById("scoreLabel").textContent = sys.scoreLabel;
+  if (!c) {
+    document.getElementById("gradeLabel").textContent = "Grade";
+    sel.innerHTML = `<option value="">Select grade…</option>`;
+    sel.value = "";
+  } else {
+    const sys = COUNTRY_SYSTEMS[c] || COUNTRY_SYSTEMS.USA;
+    const prev = parseInt(sel.value, 10);
+    document.getElementById("gradeLabel").textContent = sys.gradeLabel;
+    sel.innerHTML = `<option value="">Select ${sys.gradeLabel.toLowerCase()}…</option>` +
+      sys.grades.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+    sel.value = sys.grades.some(([v]) => v === prev) ? prev : "";
+  }
+  const sys2 = (c && COUNTRY_SYSTEMS[c]) || COUNTRY_SYSTEMS.USA;
+  document.getElementById("scoreLabel").textContent = sys2.scoreLabel;
   const inp = document.getElementById("gpa");
-  inp.max = sys.scoreMax; inp.step = sys.scoreStep; inp.value = sys.scoreDef;
+  inp.max = sys2.scoreMax; inp.step = sys2.scoreStep; inp.value = sys2.scoreDef;
 }
+
+/* mandatory-field validation: name, grade, country */
+function clearFieldErrors() {
+  ["name", "grade", "country"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove("field-error");
+  });
+  setStatus("");
+}
+const FIELD_IDS = { name: "name", grade: "grade", country: "country" };
+const FIELD_LABELS = { name: "name", grade: "grade", country: "country" };
 
 /* ---------- local fallback: transparent rule-based matching ---------- */
 function localMatch(profile) {
@@ -266,7 +291,15 @@ function mergeMatches(profile, localMs, aiMs) {
 
 /* ---------- staged, animated, resilient run ---------- */
 async function run() {
+  clearFieldErrors();
   const profile = readProfile();
+  const missing = ["name", "grade", "country"].filter(k => !profile[k]);
+  if (missing.length) {
+    missing.forEach(k => document.getElementById(FIELD_IDS[k]).classList.add("field-error"));
+    setStatus(`<div class="err">⚠️ Please fill in your <b>${missing.map(k => FIELD_LABELS[k]).join(", ")}</b> — matches need it.</div>`);
+    document.querySelector(".panel").scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
   const key = getKey();
   document.getElementById("empty").style.display = "none";
   document.getElementById("results").innerHTML = "";
