@@ -54,6 +54,9 @@ html{scroll-behavior:smooth}
 .feat p{margin:0;color:var(--muted);font-size:.9rem;line-height:1.55}
 
 /* ---------- layout ---------- */
+.appnav{max-width:1080px;margin:0 auto;padding:20px 24px 4px;display:flex;align-items:center;justify-content:space-between}
+.backlink{color:var(--cyan);text-decoration:none;font-weight:700;font-size:.95rem}
+.backlink:hover{text-decoration:underline}
 .layout{max-width:1080px;margin:0 auto;padding:12px 24px 40px;display:grid;grid-template-columns:360px 1fr;gap:22px;align-items:start}
 .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:26px;backdrop-filter:blur(14px);
   position:sticky;top:20px;max-height:calc(100vh - 40px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}
