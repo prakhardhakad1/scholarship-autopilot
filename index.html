@@ -30,10 +30,10 @@
   <section class="panel">
     <h2>Your profile</h2>
     <label>Name</label><input id="name" placeholder="Alex" autocomplete="off" />
-    <label>Grade</label>
+    <label id="gradeLabel">Grade</label>
     <select id="grade"><option>9</option><option>10</option><option>11</option><option selected>12</option></select>
     <label>Country</label>
-    <select id="country">
+    <select id="country" onchange="updateGradeOptions()">
       <option value="USA" selected>United States</option>
       <option value="UK">United Kingdom</option>
       <option value="Canada">Canada</option>
