@@ -16,7 +16,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 window.addEventListener("DOMContentLoaded", () => {
   const k = localStorage.getItem("sap_gemini_key");
   if (k) document.getElementById("apikey").value = k;
-  document.getElementById("statN").textContent = DATA.length;
+  const statN = document.getElementById("statN");
+  if (statN) statN.textContent = DATA.length;
   // On a deployed site the key lives server-side (/api/match) — hide the key field.
   // It stays visible only for local file:// runs.
   if (location.protocol.indexOf("http") === 0) {
