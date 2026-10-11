@@ -23,6 +23,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const a = document.getElementById("aiSettings");
     if (a) a.style.display = "none";
   }
+  updateGradeOptions();
   refreshProfileSel();
 });
 
@@ -76,6 +77,26 @@ function countryName(code) {
     India: "India", Japan: "Japan", "New Zealand": "New Zealand" }[code] || code;
 }
 
+/* grade naming per country: [internal grade value, label shown] */
+const GRADE_SYSTEMS = {
+  USA:    { label: "Grade", opts: [[9, "Grade 9"], [10, "Grade 10"], [11, "Grade 11"], [12, "Grade 12"]] },
+  Canada: { label: "Grade", opts: [[9, "Grade 9"], [10, "Grade 10"], [11, "Grade 11"], [12, "Grade 12"]] },
+  UK:     { label: "Year",  opts: [[9, "Year 10"], [10, "Year 11"], [11, "Year 12"], [12, "Year 13"]] },
+  Australia: { label: "Year", opts: [[9, "Year 9"], [10, "Year 10"], [11, "Year 11"], [12, "Year 12"]] },
+  India:  { label: "Class", opts: [[9, "Class 9"], [10, "Class 10"], [11, "Class 11"], [12, "Class 12"]] },
+  Japan:  { label: "High school year", opts: [[10, "1st Year"], [11, "2nd Year"], [12, "3rd Year"]] },
+  "New Zealand": { label: "Year", opts: [[9, "Year 10"], [10, "Year 11"], [11, "Year 12"], [12, "Year 13"]] }
+};
+function updateGradeOptions() {
+  const c = document.getElementById("country").value;
+  const sys = GRADE_SYSTEMS[c] || GRADE_SYSTEMS.USA;
+  const sel = document.getElementById("grade");
+  const prev = parseInt(sel.value, 10);
+  document.getElementById("gradeLabel").textContent = sys.label;
+  sel.innerHTML = sys.opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+  sel.value = sys.opts.some(([v]) => v === prev) ? prev : sys.opts[sys.opts.length - 1][0];
+}
+
 /* ---------- local fallback: transparent rule-based matching ---------- */
 function localMatch(profile) {
   return DATA
@@ -95,6 +116,30 @@ function localEssay(profile, s) {
     `The ${s.name} would help me continue this work and fund my education.`;
 }
 
+/* ---------- profile analysis: honest, computed, no invented cutoffs ---------- */
+function localAnalysis(profile, matches) {
+  const out = [];
+  const open = matches.filter(s => deadlineStatus(s.deadline).cls !== "closed");
+  const soon = matches.filter(s => deadlineStatus(s.deadline).cls === "soon")
+    .slice().sort((a, b) => a.deadline < b.deadline ? -1 : 1);
+  out.push(`You match ${matches.length} of ${DATA.length} verified scholarships (${countryName(profile.country)}); ${open.length} still open.`);
+  if (soon.length)
+    out.push(`Most urgent: ${soon[0].name} closes ${soon[0].deadline} — start that application first.`);
+  const missed = DATA.filter(s => s.minGpa != null && profile.gpa < s.minGpa &&
+    s.grades.includes(profile.grade) && (s.country === profile.country || s.intl));
+  if (missed.length) {
+    const need = Math.min(...missed.map(s => s.minGpa));
+    const names = missed.slice(0, 3).map(s => s.name).join(", ");
+    out.push(`GPA ${profile.gpa} locks you out of ${missed.length}: ${names}${missed.length > 3 ? ", …" : ""}. Reaching ${need} would unlock them.`);
+  } else if (profile.gpa >= 3.5) {
+    out.push(`GPA ${profile.gpa} clears every published cutoff in the dataset — merit scholarships are your strong lane.`);
+  }
+  const intlN = matches.filter(s => s.intl).length;
+  if (intlN) out.push(`${intlN} international program${intlN > 1 ? "s" : ""} open to you regardless of country.`);
+  if (profile.field === "Any") out.push(`No field selected — naming one (e.g. STEM or Arts) sharpens future matches.`);
+  return out;
+}
+
 /* ---------- live AI matching via Gemini (structured JSON output) ---------- */
 async function geminiMatch(profile, key) {
   const slim = DATA.map(s => ({ id: s.id, name: s.name, grades: s.grades, minGpa: s.minGpa,
@@ -105,9 +150,9 @@ Scholarships: ${JSON.stringify(slim)}.
 Eligibility rules: the student's grade must be in the scholarship's grades; GPA must meet minGpa when set;
 their field must fit (Any = all fields); and the scholarship's country must equal the student's country
 OR the scholarship must be marked intl (open internationally).
-Return ONLY valid JSON — an array of objects for scholarships the student is ELIGIBLE for, each shaped:
-{"id":"<scholarship id>","why":"<one sentence on why they match>","essay":"<3-4 sentence tailored essay draft opening>"}.
-No markdown, no explanation, just the JSON array.`;
+Return ONLY valid JSON shaped like this — no markdown, no explanation:
+{"matches":[{"id":"<scholarship id>","why":"<one sentence on why they match>","essay":"<3-4 sentence tailored essay draft opening>"}],
+ "analysis":"<3-4 sentences: the student's strengths, gaps, and one actionable tip>"}`;
   const res = await fetch(GEMINI_URL + "?key=" + encodeURIComponent(key), {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
@@ -115,11 +160,15 @@ No markdown, no explanation, just the JSON array.`;
   if (!res.ok) throw new Error("Gemini HTTP " + res.status);
   const data = await res.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  const arr = JSON.parse(text.slice(text.indexOf("["), text.lastIndexOf("]") + 1));
-  return arr.map(a => {
-    const s = DATA.find(x => x.id === a.id);
-    return s ? { ...s, why: a.why, essay: a.essay, live: true } : null;
-  }).filter(Boolean);
+  const obj = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
+  const arr = Array.isArray(obj) ? obj : (obj.matches || []);
+  return {
+    matches: arr.map(a => {
+      const s = DATA.find(x => x.id === a.id);
+      return s ? { ...s, why: a.why, essay: a.essay, live: true } : null;
+    }).filter(Boolean),
+    analysis: (!Array.isArray(obj) && obj.analysis) || null
+  };
 }
 
 /* ---------- server-side AI (Vercel /api/match — key never leaves the server) ---------- */
@@ -132,12 +181,16 @@ async function serverMatch(profile) {
     body: JSON.stringify({ profile, scholarships: slim })
   });
   if (!res.ok) throw new Error("server AI unavailable (" + res.status + ")");
-  const arr = await res.json();
+  const obj = await res.json();
+  const arr = Array.isArray(obj) ? obj : (obj.matches || []);
   if (!Array.isArray(arr)) throw new Error("bad server response");
-  return arr.map(a => {
-    const s = DATA.find(x => x.id === a.id);
-    return s ? { ...s, why: a.why, essay: a.essay, live: true } : null;
-  }).filter(Boolean);
+  return {
+    matches: arr.map(a => {
+      const s = DATA.find(x => x.id === a.id);
+      return s ? { ...s, why: a.why, essay: a.essay, live: true } : null;
+    }).filter(Boolean),
+    analysis: (!Array.isArray(obj) && obj.analysis) || null
+  };
 }
 
 /* ---------- staged, animated, resilient run ---------- */
@@ -152,17 +205,20 @@ async function run() {
   stage("Scanning scholarships…");       await sleep(450);
   stage("Checking eligibility…");        await sleep(450);
 
-  let matches, live = false;
+  let matches, live = false, analysis = null;
   // 1) built-in server AI (Vercel) — the visitor needs no key
   try {
     stage("Drafting with built-in AI…");
-    matches = await serverMatch(profile);
-    live = true;
+    const r = await serverMatch(profile);
+    matches = r.matches; analysis = r.analysis; live = true;
   } catch (e) {
     // 2) visitor's own key, direct to Gemini (for local file:// runs)
     const key = getKey();
     if (key) {
-      try { matches = await geminiMatch(profile, key); live = true; }
+      try {
+        const r = await geminiMatch(profile, key);
+        matches = r.matches; analysis = r.analysis; live = true;
+      }
       catch (e2) { console.warn("key AI failed, local fallback:", e2); matches = localMatch(profile); }
     } else {
       // 3) transparent local matching — the demo never breaks
@@ -171,7 +227,7 @@ async function run() {
   }
 
   setStatus("");
-  LAST = { profile, matches, live };
+  LAST = { profile, matches, live, analysis };
   document.getElementById("exportBtn").disabled = !matches.length;
   document.getElementById("icsBtn").disabled = !matches.length;
   render(profile, matches, live);
@@ -200,7 +256,11 @@ function render(profile, matches, live) {
     ? `<div class="warn">⚠️ <b>Heads up:</b> with a GPA under 2.0, most merit scholarships are extremely competitive. ` +
       `The matches below have <b>no published GPA cutoff</b> — treat them as long shots and confirm directly on the official page.</div>`
     : "";
-  box.innerHTML = gpaWarn + visible.map((s, i) => {
+  const analysisLines = (live && LAST.analysis) ? [LAST.analysis] : localAnalysis(profile, matches);
+  const analysisHTML = `<div class="analysis"><b class="head">PROFILE ANALYSIS` +
+    `${(live && LAST.analysis) ? ' <span class="autotag">AI</span>' : ""}</b><ul>` +
+    analysisLines.map(t => `<li>${escapeHtml(t)}</li>`).join("") + `</ul></div>`;
+  box.innerHTML = gpaWarn + analysisHTML + visible.map((s, i) => {
     const st = deadlineStatus(s.deadline);
     const cur = t[s.id];
     return `
@@ -333,8 +393,9 @@ function loadProfile(name) {
   if (!name) return;
   const p = getProfiles()[name]; if (!p) return;
   document.getElementById("name").value = p.name || "";
-  document.getElementById("grade").value = p.grade;
   if (p.country) document.getElementById("country").value = p.country;
+  updateGradeOptions();
+  document.getElementById("grade").value = p.grade;
   document.getElementById("gpa").value = p.gpa;
   document.getElementById("field").value = p.field === "Any" ? "" : p.field;
   document.getElementById("achievement").value = p.achievement || "";
@@ -354,6 +415,8 @@ function exportPack() {
   let md = `# Scholarship Application Pack — ${displayName}\n\n`;
   md += `Profile: grade ${profile.grade}, ${countryName(profile.country)}, GPA ${profile.gpa}, interest: ${profile.field}\n`;
   md += `Generated: ${new Date().toISOString()} (${live ? "live Gemini AI" : "local matching"})\n\n`;
+  const aLines = (live && LAST.analysis) ? [LAST.analysis] : localAnalysis(profile, matches);
+  md += `## Profile analysis\n${aLines.map(t => `- ${t}`).join("\n")}\n\n`;
   matches.forEach((s, i) => {
     md += `## ${i + 1}. ${s.name}\nAward: ${s.award} · Deadline: ${s.deadline}\nOfficial: ${s.officialLink}\n\n`;
     md += `Why you match: ${s.why}\n\nEssay draft:\n${s.essay}\n\nChecklist:\n`;
