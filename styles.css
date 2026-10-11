@@ -126,6 +126,10 @@ a.chip:hover{background:rgba(34,211,238,.12);transform:translateY(-1px)}
 .warn{border:1px solid rgba(251,191,36,.45);background:rgba(251,191,36,.08);color:#fde68a;
   border-radius:14px;padding:14px 16px;font-size:.9rem;margin-bottom:14px;line-height:1.5}
 .warn b{color:#fbbf24}
+.err{border:1px solid rgba(248,113,113,.5);background:rgba(248,113,113,.1);color:#fecaca;
+  border-radius:14px;padding:14px 16px;font-size:.92rem;margin-bottom:14px;line-height:1.5}
+.err b{color:#f87171}
+.field-error{border-color:#f87171 !important;box-shadow:0 0 0 3px rgba(248,113,113,.25) !important}
 .analysis{border:1px solid rgba(139,92,246,.4);background:rgba(139,92,246,.07);
   border-radius:14px;padding:14px 16px;margin-bottom:14px}
 .analysis b.head{display:block;font-size:.78rem;letter-spacing:.1em;color:var(--faint);margin-bottom:8px}
