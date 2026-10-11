@@ -13,7 +13,15 @@ weeks of scattered searching. One click exports the full application pack.
 - **Presentation:** staged animated run (scan → match → draft), before/after framing,
   video walks through features + code.
 
-## Run it (judges — 10 seconds, zero setup)
+## Deploy on Vercel (live demo with built-in AI — no key needed by visitors)
+1. `npm i -g vercel && vercel` from this folder (or import the GitHub repo in the Vercel dashboard).
+2. Add your Gemini key as an env var — it stays server-side, never in the repo:
+   `vercel env add GEMINI_API_KEY` (paste the key when prompted), then redeploy.
+3. The app calls `POST /api/match` (see `api/match.js`); visitors never see or need a key.
+   Honest caveat: a public demo means anyone can trigger AI calls on your key —
+   fine at hackathon scale, but watch usage in Google AI Studio during judging.
+
+## Run it locally (judges — 10 seconds, zero setup)
 1. Download / clone this folder.
 2. Double-click `index.html`. Done — no build step, no `npm install`, no server.
    (The dataset is embedded in `scholarships.js`, so it works straight from `file://`.)
@@ -29,6 +37,9 @@ weeks of scattered searching. One click exports the full application pack.
   localStorage), `exportPack()` (markdown download), `exportICS()` (calendar file),
   saved profiles (`saveProfile`/`loadProfile`, localStorage).
   Live AI fails soft to local matching — the demo never breaks.
+- `api/match.js` — Vercel serverless function: `POST /api/match` runs Gemini with the
+  key from the `GEMINI_API_KEY` env var (server-side only). Validates input, caps
+  dataset size, returns structured JSON.
 - `scholarships.js` — curated dataset as an embedded const (verified entries).
 - `DEVPOST.md` — copy-paste submission fields (title, tagline, description, setup).
 - `README.md` — this file.
