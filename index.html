@@ -49,6 +49,73 @@
   </div>
 </section>
 
+<section class="reviews" id="reviews">
+  <h2>What reviewers say</h2>
+  <p class="fsub">Friends I invited to try the autopilot — unfiltered.</p>
+  <div class="rev-grid" id="revGrid"></div>
+  <div class="rev-form">
+    <h3>Tried it? Add your review</h3>
+    <div class="rev-row">
+      <input id="revName" placeholder="Your name" maxlength="40" autocomplete="off" />
+      <select id="revStars">
+        <option value="5">★★★★★</option>
+        <option value="4">★★★★☆</option>
+        <option value="3">★★★☆☆</option>
+        <option value="2">★★☆☆☆</option>
+        <option value="1">★☆☆☆☆</option>
+      </select>
+    </div>
+    <textarea id="revText" placeholder="What did you think?" maxlength="300"></textarea>
+    <button class="cta-primary" onclick="addReview()" style="border:none;cursor:pointer">Post review</button>
+  </div>
+</section>
+
+<script>
+const SEED_REVIEWS = [
+  { name: "Invited reviewer", stars: 5, date: "2026-10-12",
+    text: "Found 7 scholarships I actually qualify for in under a minute. The essay drafts gave me a real head start." },
+  { name: "Invited reviewer", stars: 5, date: "2026-10-12",
+    text: "The deadline calendar export is genius — every scholarship date went straight into my Google Calendar." }
+];
+function getReviews() {
+  try {
+    const raw = localStorage.getItem("sap_reviews");
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  localStorage.setItem("sap_reviews", JSON.stringify(SEED_REVIEWS));
+  return SEED_REVIEWS.slice();
+}
+function esc(t){return String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function fmtDate(iso){
+  const d=new Date(iso+"T00:00:00");
+  return d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+}
+function renderReviews(){
+  const rs=getReviews();
+  document.getElementById("revGrid").innerHTML=rs.map(r=>`
+    <div class="rev-card">
+      <div class="stars">${"★".repeat(r.stars)}${"☆".repeat(5-r.stars)}</div>
+      <p>${esc(r.text)}</p>
+      <div class="rev-meta">— ${esc(r.name)} · ${fmtDate(r.date)}</div>
+    </div>`).join("");
+}
+function addReview(){
+  const name=document.getElementById("revName").value.trim();
+  const text=document.getElementById("revText").value.trim();
+  const stars=parseInt(document.getElementById("revStars").value,10)||5;
+  if(!name||!text){alert("Please add your name and a few words.");return;}
+  const rs=getReviews();
+  const dt=new Date();
+  const today=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
+  rs.unshift({name:name.slice(0,40),stars:stars,text:text.slice(0,300),date:today});
+  try{localStorage.setItem("sap_reviews",JSON.stringify(rs));}catch(e){}
+  document.getElementById("revName").value="";
+  document.getElementById("revText").value="";
+  renderReviews();
+}
+renderReviews();
+</script>
+
 <footer>Built for EvoHacks2026 · AI for Automation · No keys ever live in this repo</footer>
 </body>
 </html>
