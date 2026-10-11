@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Scholarship Autopilot — App</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="bg"><div class="orb orb-a"></div><div class="orb orb-b"></div><div class="orb orb-c"></div></div>
+
+<nav class="appnav">
+  <a href="index.html" class="backlink">← Scholarship Autopilot</a>
+  <span class="eyebrow" style="font-size:.68rem">EVOHACKS2026 · AI FOR AUTOMATION</span>
+</nav>
+
+<main class="layout" id="app" style="padding-top:8px">
+  <section class="panel">
+    <h2>Your profile</h2>
+    <label>Name</label><input id="name" placeholder="Alex" autocomplete="off" />
+    <label id="gradeLabel">Grade</label>
+    <select id="grade"><option>9</option><option>10</option><option>11</option><option selected>12</option></select>
+    <label>Country</label>
+    <select id="country" onchange="updateCountrySystem()">
+      <option value="">Select country…</option>
+      <option value="USA">United States</option>
+      <option value="UK">United Kingdom</option>
+      <option value="Canada">Canada</option>
+      <option value="Australia">Australia</option>
+      <option value="India">India</option>
+      <option value="Japan">Japan</option>
+      <option value="New Zealand">New Zealand</option>
+    </select>
+    <label id="scoreLabel">GPA (0–4)</label><input id="gpa" type="number" step="0.1" min="0" max="4" value="3.6" />
+    <label>Field of interest</label><input id="field" placeholder="Computer Science" autocomplete="off" />
+    <label>One achievement <span class="hint" style="display:inline">— fuels the essay drafts</span></label>
+    <textarea id="achievement" placeholder="Built a school attendance app"></textarea>
+
+    <div id="aiSettings">
+    <h2>AI settings</h2>
+    <p class="hint">Live AI is built into the deployed demo — no key needed. The field below is only for running from a local file.</p>
+    <label>Gemini API key</label>
+    <div class="keyrow">
+      <input id="apikey" type="password" placeholder="Paste key for live AI" autocomplete="off" />
+      <button class="ghost" onclick="saveKey()">Save</button>
+    </div>
+    </div>
+
+    <button class="primary" onclick="run()">✨ Find my scholarships</button>
+    <div class="profrow">
+      <select id="profileSel" onchange="loadProfile(this.value)"><option value="">Saved profiles…</option></select>
+      <button class="ghost" onclick="saveProfile()">💾 Save</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="results-head">
+      <h2>Matches<span id="badge"></span></h2>
+      <div>
+        <button class="ghost" id="icsBtn" onclick="exportICS()" disabled>📅 Deadlines (.ics)</button>
+        <button class="ghost" id="exportBtn" onclick="exportPack()" disabled>⬇ Export application pack</button>
+      </div>
+    </div>
+    <div class="filters" id="filters"></div>
+    <div id="status"></div>
+    <div id="results" class="cards"></div>
+    <div id="empty" class="empty">
+      <div class="big">🎓</div>
+      <p><b>Your matches will appear here.</b></p>
+      <p>Fill the profile, hit the button, and watch the autopilot work.</p>
+    </div>
+  </section>
+</main>
+
+<footer>Built for EvoHacks2026 · AI for Automation · No keys ever live in this repo</footer>
+
+<script src="scholarships.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
