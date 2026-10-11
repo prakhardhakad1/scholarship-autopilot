@@ -18,11 +18,14 @@ export default async function handler(req, res) {
 
   const slim = scholarships.map(s => ({
     id: s.id, name: s.name, grades: s.grades, minGpa: s.minGpa,
-    fields: s.fields, award: s.award, deadline: s.deadline, country: s.country || null
+    fields: s.fields, award: s.award, deadline: s.deadline, country: s.country || null, intl: !!s.intl
   }));
   const prompt =
 `You are a scholarship matching assistant. Student profile: ${JSON.stringify(profile)}.
 Scholarships: ${JSON.stringify(slim)}.
+Eligibility rules: the student's grade must be in the scholarship's grades; GPA must meet minGpa when set;
+their field must fit (Any = all fields); and the scholarship's country must equal the student's country
+OR the scholarship must be marked intl (open internationally).
 Return ONLY valid JSON — an array of objects for scholarships the student is ELIGIBLE for, each shaped:
 {"id":"<scholarship id>","why":"<one sentence on why they match>","essay":"<3-4 sentence tailored essay draft opening>"}.
 No markdown, no explanation, just the JSON array.`;
