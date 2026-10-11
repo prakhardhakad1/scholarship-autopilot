@@ -230,6 +230,40 @@ async function serverMatch(profile) {
   };
 }
 
+/* ---------- merged AI + local matching ----------
+ * Local rules guarantee recall (no eligible scholarship is ever missed);
+ * AI enriches matches with richer reasoning + essays and can catch what rigid
+ * rules miss (e.g. an unusual field spelling). AI suggestions are verified
+ * against hard rules (grade, GPA cutoff, country) — hallucinations are dropped.
+ */
+function passesHardRules(s, profile) {
+  return s.grades.includes(profile.grade) &&
+    (s.minGpa == null || profile.gpa >= s.minGpa) &&
+    (s.country === profile.country || s.intl);
+}
+function mergeMatches(profile, localMs, aiMs) {
+  const byId = new Map();
+  localMs.forEach(m => byId.set(m.id, m));
+  aiMs.forEach(a => {
+    const s = DATA.find(x => x.id === a.id);
+    if (!s) return; // hallucinated id — drop
+    if (byId.has(a.id)) {
+      const cur = byId.get(a.id); // both agree: AI's richer text wins
+      if (a.why) cur.why = a.why;
+      if (a.essay) cur.essay = a.essay;
+      cur.live = true;
+    } else if (passesHardRules(s, profile)) {
+      // AI-only: trust AI's field judgment, hard-verify everything else
+      byId.set(a.id, { ...s,
+        why: a.why || whyLine(profile, s),
+        essay: a.essay || localEssay(profile, s),
+        live: true });
+    }
+    // else: AI suggested an ineligible scholarship — drop it
+  });
+  return [...byId.values()];
+}
+
 /* ---------- staged, animated, resilient run ---------- */
 async function run() {
   const profile = readProfile();
@@ -243,23 +277,26 @@ async function run() {
   stage("Checking eligibility…");        await sleep(450);
 
   let matches, live = false, analysis = null;
-  // 1) built-in server AI (Vercel) — the visitor needs no key
+  const localMs = localMatch(profile); // always computed: deterministic, complete
+  // 1) built-in server AI (Vercel) — merged with local rules for the best result
   try {
-    stage("Drafting with built-in AI…");
+    stage("Matching with AI + local rules…");
     const r = await serverMatch(profile);
-    matches = r.matches; analysis = r.analysis; live = true;
+    matches = mergeMatches(profile, localMs, r.matches);
+    analysis = r.analysis; live = true;
   } catch (e) {
     // 2) visitor's own key, direct to Gemini (for local file:// runs)
     const key = getKey();
     if (key) {
       try {
         const r = await geminiMatch(profile, key);
-        matches = r.matches; analysis = r.analysis; live = true;
+        matches = mergeMatches(profile, localMs, r.matches);
+        analysis = r.analysis; live = true;
       }
-      catch (e2) { console.warn("key AI failed, local fallback:", e2); matches = localMatch(profile); }
+      catch (e2) { console.warn("key AI failed, local fallback:", e2); matches = localMs; }
     } else {
-      // 3) transparent local matching — the demo never breaks
-      matches = localMatch(profile);
+      // 3) local matching alone — the demo never breaks
+      matches = localMs;
     }
   }
 
@@ -286,8 +323,8 @@ function render(profile, matches, live) {
     return;
   }
   badge.innerHTML = live
-    ? `<span class="badge live">LIVE AI</span>`
-    : `<span class="badge local">LOCAL MODE · ADD KEY FOR LIVE AI</span>`;
+    ? `<span class="badge live">AI + LOCAL</span>`
+    : `<span class="badge local">LOCAL</span>`;
   window._matches = visible; // checklist automation buttons index into this
   const gpaWarn = profile.gpa < 2.0
     ? `<div class="warn">⚠️ <b>Heads up:</b> with a GPA under 2.0, most merit scholarships are extremely competitive. ` +
