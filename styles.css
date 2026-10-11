@@ -53,6 +53,21 @@ html{scroll-behavior:smooth}
 .feat h3{margin:10px 0 6px;font-size:1.02rem}
 .feat p{margin:0;color:var(--muted);font-size:.9rem;line-height:1.55}
 
+/* ---------- reviews ---------- */
+.reviews{max-width:1080px;margin:0 auto;padding:40px 24px 10px}
+.reviews>h2{text-align:center;font-size:1.6rem;letter-spacing:-.02em;margin:0 0 6px}
+.rev-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin:24px 0 28px}
+.rev-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:22px;backdrop-filter:blur(14px)}
+.rev-card .stars{color:#fbbf24;font-size:1.05rem;letter-spacing:3px}
+.rev-card p{margin:10px 0;color:var(--text);font-size:.95rem;line-height:1.6}
+.rev-meta{color:var(--faint);font-size:.82rem}
+.rev-form{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:24px;max-width:640px;margin:0 auto 8px;backdrop-filter:blur(14px)}
+.rev-form h3{margin:0 0 12px;font-size:1.05rem}
+.rev-row{display:flex;gap:12px;margin-bottom:12px}
+.rev-row input{flex:1}
+.rev-row select{width:150px;flex:none}
+.rev-form textarea{margin-bottom:14px}
+
 /* ---------- layout ---------- */
 .appnav{max-width:1080px;margin:0 auto;padding:20px 24px 4px;display:flex;align-items:center;justify-content:space-between}
 .backlink{color:var(--cyan);text-decoration:none;font-weight:700;font-size:.95rem}
