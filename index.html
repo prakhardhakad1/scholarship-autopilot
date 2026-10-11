@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Scholarship Autopilot — EvoHacks2026</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="bg"><div class="orb orb-a"></div><div class="orb orb-b"></div><div class="orb orb-c"></div></div>
+
+<header class="hero">
+  <div class="eyebrow"><span class="dot"></span>EVOHACKS2026 · AI FOR AUTOMATION</div>
+  <h1>Scholarship <span class="grad">Autopilot</span></h1>
+  <p class="sub">One profile in. Eligible scholarships, tailored essay drafts, and a deadline
+     checklist out — then export the whole application pack in a single click.</p>
+  <div class="steps">
+    <div class="step"><b>1</b> Drop your profile</div>
+    <div class="step"><b>2</b> AI matches &amp; drafts</div>
+    <div class="step"><b>3</b> Export the pack</div>
+  </div>
+  <div class="stats">
+    <div><b id="statN">–</b><span>verified scholarships</span></div>
+    <div><b>60s</b><span>profile → pack</span></div>
+    <div><b>2 modes</b><span>live AI + local</span></div>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="panel">
+    <h2>Your profile</h2>
+    <label>Name</label><input id="name" placeholder="Alex" autocomplete="off" />
+    <label>Grade</label>
+    <select id="grade"><option>9</option><option>10</option><option>11</option><option selected>12</option></select>
+    <label>GPA (0–4)</label><input id="gpa" type="number" step="0.1" min="0" max="4" value="3.6" />
+    <label>Field of interest</label><input id="field" placeholder="Computer Science" autocomplete="off" />
+    <label>One achievement <span class="hint" style="display:inline">— fuels the essay drafts</span></label>
+    <textarea id="achievement" placeholder="Built a school attendance app"></textarea>
+
+    <h2>AI settings</h2>
+    <p class="hint">Optional. Your key stays in this browser only — it never enters the repo.</p>
+    <label>Gemini API key</label>
+    <div class="keyrow">
+      <input id="apikey" type="password" placeholder="Paste key for live AI" autocomplete="off" />
+      <button class="ghost" onclick="saveKey()">Save</button>
+    </div>
+
+    <button class="primary" onclick="run()">✨ Find my scholarships</button>
+    <div class="profrow">
+      <select id="profileSel" onchange="loadProfile(this.value)"><option value="">Saved profiles…</option></select>
+      <button class="ghost" onclick="saveProfile()">💾 Save</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="results-head">
+      <h2>Matches<span id="badge"></span></h2>
+      <div>
+        <button class="ghost" id="icsBtn" onclick="exportICS()" disabled>📅 Deadlines (.ics)</button>
+        <button class="ghost" id="exportBtn" onclick="exportPack()" disabled>⬇ Export application pack</button>
+      </div>
+    </div>
+    <div class="filters" id="filters"></div>
+    <div id="status"></div>
+    <div id="results" class="cards"></div>
+    <div id="empty" class="empty">
+      <div class="big">🎓</div>
+      <p><b>Your matches will appear here.</b></p>
+      <p>Fill the profile, hit the button, and watch the autopilot work.</p>
+    </div>
+  </section>
+</main>
+
+<footer>Built for EvoHacks2026 · AI for Automation · No keys ever live in this repo</footer>
+
+<script src="scholarships.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
