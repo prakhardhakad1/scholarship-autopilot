@@ -74,7 +74,7 @@ function localEssay(profile, s) {
 /* ---------- live AI matching via Gemini (structured JSON output) ---------- */
 async function geminiMatch(profile, key) {
   const slim = DATA.map(s => ({ id: s.id, name: s.name, grades: s.grades, minGpa: s.minGpa,
-    fields: s.fields, award: s.award, deadline: s.deadline }));
+    fields: s.fields, award: s.award, deadline: s.deadline, country: s.country || null }));
   const prompt =
 `You are a scholarship matching assistant. Student profile: ${JSON.stringify(profile)}.
 Scholarships: ${JSON.stringify(slim)}.
@@ -95,7 +95,25 @@ No markdown, no explanation, just the JSON array.`;
   }).filter(Boolean);
 }
 
-/* ---------- run: staged, animated, resilient ---------- */
+/* ---------- server-side AI (Vercel /api/match — key never leaves the server) ---------- */
+async function serverMatch(profile) {
+  const slim = DATA.map(s => ({ id: s.id, name: s.name, grades: s.grades, minGpa: s.minGpa,
+    fields: s.fields, award: s.award, deadline: s.deadline, country: s.country || null }));
+  const res = await fetch("/api/match", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ profile, scholarships: slim })
+  });
+  if (!res.ok) throw new Error("server AI unavailable (" + res.status + ")");
+  const arr = await res.json();
+  if (!Array.isArray(arr)) throw new Error("bad server response");
+  return arr.map(a => {
+    const s = DATA.find(x => x.id === a.id);
+    return s ? { ...s, why: a.why, essay: a.essay, live: true } : null;
+  }).filter(Boolean);
+}
+
+/* ---------- staged, animated, resilient run ---------- */
 async function run() {
   const profile = readProfile();
   const key = getKey();
@@ -108,12 +126,21 @@ async function run() {
   stage("Checking eligibility…");        await sleep(450);
 
   let matches, live = false;
-  if (key) {
-    stage("Drafting with Gemini live AI…");
-    try { matches = await geminiMatch(profile, key); live = true; }
-    catch (e) { console.warn("Gemini failed, local fallback:", e); matches = localMatch(profile); }
-  } else {
-    matches = localMatch(profile);
+  // 1) built-in server AI (Vercel) — the visitor needs no key
+  try {
+    stage("Drafting with built-in AI…");
+    matches = await serverMatch(profile);
+    live = true;
+  } catch (e) {
+    // 2) visitor's own key, direct to Gemini (for local file:// runs)
+    const key = getKey();
+    if (key) {
+      try { matches = await geminiMatch(profile, key); live = true; }
+      catch (e2) { console.warn("key AI failed, local fallback:", e2); matches = localMatch(profile); }
+    } else {
+      // 3) transparent local matching — the demo never breaks
+      matches = localMatch(profile);
+    }
   }
 
   setStatus("");
@@ -150,6 +177,7 @@ function render(profile, matches, live) {
       <div class="meta">
         <span class="chip">⏰ ${escapeHtml(s.deadline)}</span>
         <span class="chip ${st.cls}">${st.label}</span>
+        ${s.country ? `<span class="chip">🌍 ${escapeHtml(s.country)}</span>` : ""}
         <a class="chip" href="${escapeHtml(s.officialLink)}" target="_blank" rel="noopener">Official page ↗</a>
       </div>
       <p class="why">${escapeHtml(s.why)}</p>
